@@ -14,7 +14,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import com.example.juntavecinal_grupox.model.isBooked
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal_grupox.model.Reservation
@@ -27,6 +32,7 @@ import com.example.juntavecinal_grupox.model.AppUiState
 @Composable
 fun ReservationsScreen(
     uiState: AppUiState,
+    onPayment: (String, Long) -> Boolean,
     onNewReservation: () -> Unit,
     onUpdateStatus: (String, ReservationStatus) -> Unit
 ) {
@@ -69,6 +75,9 @@ fun ReservationsScreen(
         items(reservations, key = { it.id }) { reservation ->
             ReservationCard(
                 reservation = reservation,
+                paid = uiState.movements.any { it.reservationId == reservation.id },
+                occupied = uiState.reservations.isBooked(reservation.date, reservation.time),
+                onPayment = if (uiState.activeProfile == UserRole.TESORERIA) onPayment else null,
                 canManage = uiState.activeProfile == UserRole.DIRECTIVA,
                 onUpdateStatus = onUpdateStatus
             )
@@ -79,6 +88,9 @@ fun ReservationsScreen(
 @Composable
 private fun ReservationCard(
     reservation: Reservation,
+    paid: Boolean,
+    occupied: Boolean,
+    onPayment: ((String, Long) -> Boolean)?,
     canManage: Boolean,
     onUpdateStatus: (String, ReservationStatus) -> Unit
 ) {
@@ -101,7 +113,31 @@ private fun ReservationCard(
             Text("Solicita: ${reservation.requesterName}", style = MaterialTheme.typography.bodyMedium)
             Text("${reservation.date} · ${reservation.time} · Sede comunitaria", style = MaterialTheme.typography.bodyMedium)
 
+            if (reservation.status == ReservationStatus.APROBADA) {
+                Text(if (paid) "Pagada" else "Pago pendiente")
+                if (!paid && onPayment != null) {
+                    var showDialog by rememberSaveable { mutableStateOf(false) }
+                    var amount by rememberSaveable { mutableStateOf("") }
+                    TextButton(onClick = { showDialog = true }) { Text("Registrar pago") }
+                    if (showDialog) {
+                        val pesos = amount.toLongOrNull()
+                        AlertDialog(onDismissRequest = { showDialog = false },
+                            title = { Text("Pago de arriendo") },
+                            text = { OutlinedTextField(value = amount,
+                                onValueChange = { if (it.all(Char::isDigit)) amount = it },
+                                label = { Text("Monto en pesos") }, singleLine = true) },
+                            confirmButton = {
+                                Button(enabled = pesos != null && pesos > 0,
+                                    onClick = { if (pesos != null && onPayment(reservation.id, pesos)) showDialog = false }
+                                ) { Text("Guardar pago") }
+                            },
+                            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancelar") } })
+                    }
+                }
+            }
+
             if (canManage && reservation.status == ReservationStatus.PENDIENTE) {
+                if (occupied) Text("Bloque ocupado por otra reserva aprobada")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FilledTonalButton(
                         onClick = { onUpdateStatus(reservation.id, ReservationStatus.RECHAZADA) },
@@ -110,6 +146,7 @@ private fun ReservationCard(
                         Text("Rechazar")
                     }
                     Button(
+                        enabled = !occupied,
                         onClick = { onUpdateStatus(reservation.id, ReservationStatus.APROBADA) },
                         modifier = Modifier.weight(1f)
                     ) {

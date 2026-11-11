@@ -5,6 +5,8 @@ import com.example.juntavecinal_grupox.model.MovementType
 import com.example.juntavecinal_grupox.model.Reservation
 import com.example.juntavecinal_grupox.model.ReservationStatus
 import com.example.juntavecinal_grupox.model.UserRole
+import com.example.juntavecinal_grupox.model.isBooked
+import com.example.juntavecinal_grupox.model.bookingSlots
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -17,7 +19,8 @@ class JuntaVecinalRepository {
     var movements = demoMovements()
         private set
 
-    fun addReservation(requesterName: String, date: String, time: String, purpose: String) {
+    fun addReservation(requesterName: String, date: String, time: String, purpose: String): Boolean {
+        if (time !in bookingSlots || purpose.isBlank() || reservations.isBooked(date, time)) return false
         val reservation = Reservation(
             id = UUID.randomUUID().toString(),
             requesterName = requesterName,
@@ -28,15 +31,26 @@ class JuntaVecinalRepository {
         )
 
         reservations = listOf(reservation) + reservations
+        return true
     }
 
-    fun updateReservationStatus(id: String, status: ReservationStatus) {
+    fun updateReservationStatus(id: String, status: ReservationStatus): Boolean {
+        val request = reservations.find { it.id == id && it.status == ReservationStatus.PENDIENTE } ?: return false
+        if (status == ReservationStatus.APROBADA && reservations.isBooked(request.date, request.time)) return false
         reservations = reservations.map { reservation ->
             if (reservation.id == id) reservation.copy(status = status) else reservation
         }
+        return true
     }
 
-    fun addMovement(title: String, category: String, amount: Long, type: MovementType) {
+    fun registerPayment(id: String, amount: Long): Boolean {
+        val reservation = reservations.find { it.id == id && it.status == ReservationStatus.APROBADA } ?: return false
+        if (amount <= 0 || movements.any { it.reservationId == id }) return false
+        addMovement("Arriendo · " + reservation.purpose, "Pago de arriendo", amount, MovementType.INGRESO, id)
+        return true
+    }
+
+    fun addMovement(title: String, category: String, amount: Long, type: MovementType, reservationId: String? = null) {
         if (amount <= 0) return
 
         val movement = FinancialMovement(
@@ -45,7 +59,8 @@ class JuntaVecinalRepository {
             category = category,
             amount = amount,
             date = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("es-CL")).format(Date()),
-            type = type
+            type = type,
+            reservationId = reservationId
         )
 
         movements = listOf(movement) + movements
@@ -101,7 +116,7 @@ private fun demoMovements() = listOf(
         title = "Arriendo de sede",
         category = "Ingreso por arriendo",
         amount = 30000,
-        date = "01/11/2026",
+        date = "31/10/2026",
         type = MovementType.INGRESO
     )
 )

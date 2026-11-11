@@ -8,6 +8,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -49,7 +54,18 @@ fun JuntaVecinalApp(mainViewModel: MainViewModel = viewModel()) {
     val currentRoute = backStackEntry?.destination?.route ?: AppRoutes.Home.route
     val showBottomBar = bottomNavigationItems.any { it.route == currentRoute }
 
+    val messages = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    fun confirm(message: String) {
+        scope.launch { messages.showSnackbar(message) }
+    }
+    fun finishForm(route: String) {
+        navController.popBackStack()
+        navController.navigate(route) { launchSingleTop = true }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(messages) },
         topBar = {
             TopAppBar(
                 title = { Text("Junta Vecinal") },
@@ -107,7 +123,15 @@ fun JuntaVecinalApp(mainViewModel: MainViewModel = viewModel()) {
                 ReservationsScreen(
                     uiState = uiState,
                     onNewReservation = { navController.navigate(AppRoutes.ReservationForm.route) },
-                    onUpdateStatus = mainViewModel::updateReservationStatus
+                    onPayment = { id, amount ->
+                        val paid = mainViewModel.registerPayment(id, amount)
+                        confirm(if (paid) "Pago registrado" else "Revisa el estado del arriendo")
+                        paid
+                    },
+                    onUpdateStatus = { id, status ->
+                        val updated = mainViewModel.updateReservationStatus(id, status)
+                        confirm(if (updated) "Solicitud actualizada" else "El bloque ya está ocupado")
+                    }
                 )
             }
             composable(AppRoutes.Finance.route) {
@@ -130,10 +154,15 @@ fun JuntaVecinalApp(mainViewModel: MainViewModel = viewModel()) {
             }
             composable(AppRoutes.ReservationForm.route) {
                 ReservationFormScreen(
+                    reservations = uiState.reservations,
                     onBack = { navController.popBackStack() },
                     onSubmit = { date, time, purpose ->
-                        mainViewModel.addReservation(date, time, purpose)
-                        navController.popBackStack()
+                        val added = mainViewModel.addReservation(date, time, purpose)
+                        if (added) {
+                            finishForm(AppRoutes.Reservations.route)
+                            confirm("Solicitud enviada")
+                        }
+                        added
                     }
                 )
             }
@@ -142,7 +171,8 @@ fun JuntaVecinalApp(mainViewModel: MainViewModel = viewModel()) {
                     onBack = { navController.popBackStack() },
                     onSubmit = { title, category, amount, type ->
                         mainViewModel.addMovement(title, category, amount, type)
-                        navController.popBackStack()
+                        finishForm(AppRoutes.Finance.route)
+                        confirm("Movimiento registrado")
                     }
                 )
             }

@@ -40,7 +40,7 @@ fun MovementFormScreen(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Volver a finanzas") }
+        TextButton(onClick = onBack) { Text("← Volver") }
         SectionTitle("Registrar movimiento")
         Text("Agrega un ingreso o gasto ficticio para la demostración.")
 

@@ -21,14 +21,23 @@ class MainViewModel : ViewModel() {
         _uiState.update { it.copy(activeProfile = profile) }
     }
 
-    fun addReservation(date: String, time: String, purpose: String) {
-        repository.addReservation(_uiState.value.activeProfile.demoName, date, time, purpose)
+    fun addReservation(date: String, time: String, purpose: String): Boolean {
+        val added = repository.addReservation(_uiState.value.activeProfile.demoName, date, time, purpose)
         _uiState.update { it.copy(reservations = repository.reservations) }
+        return added
     }
 
-    fun updateReservationStatus(id: String, status: ReservationStatus) {
-        repository.updateReservationStatus(id, status)
+    fun updateReservationStatus(id: String, status: ReservationStatus): Boolean {
+        val updated = repository.updateReservationStatus(id, status)
         _uiState.update { it.copy(reservations = repository.reservations) }
+        return updated
+    }
+
+    fun registerPayment(id: String, amount: Long): Boolean {
+        if (_uiState.value.activeProfile != UserRole.TESORERIA) return false
+        val paid = repository.registerPayment(id, amount)
+        _uiState.update { it.copy(movements = repository.movements) }
+        return paid
     }
 
     fun addMovement(title: String, category: String, amount: Long, type: MovementType) {

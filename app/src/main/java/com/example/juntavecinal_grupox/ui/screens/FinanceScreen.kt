@@ -13,7 +13,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.TextButton
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal_grupox.model.FinancialMovement
@@ -29,6 +34,12 @@ fun FinanceScreen(
     uiState: AppUiState,
     onNewMovement: () -> Unit
 ) {
+    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
+    val month = Calendar.getInstance().apply { add(Calendar.MONTH, monthOffset) }.time
+    val monthKey = SimpleDateFormat("MM/yyyy", Locale.ROOT).format(month)
+    val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.forLanguageTag("es-CL")).format(month)
+    val report = uiState.copy(movements = uiState.movements.filter { it.date.endsWith("/" + monthKey) })
+
     LazyColumn(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -45,10 +56,19 @@ fun FinanceScreen(
         }
 
         item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                TextButton(onClick = { monthOffset-- }) { Text("Anterior") }
+                Text(monthLabel)
+                TextButton(onClick = { monthOffset++ }) { Text("Siguiente") }
+            }
+        }
+
+        item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Saldo disponible (demo)", style = MaterialTheme.typography.titleMedium)
-                    Text(formatClp(uiState.balance), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("Saldo del mes", style = MaterialTheme.typography.titleMedium)
+                    Text(formatClp(report.balance), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -57,14 +77,14 @@ fun FinanceScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SummaryCard(
                     title = "Ingresos",
-                    value = formatClp(uiState.totalIncome),
-                    supportingText = "acumulados (demo)",
+                    value = formatClp(report.totalIncome),
+                    supportingText = "del mes",
                     modifier = Modifier.weight(1f)
                 )
                 SummaryCard(
                     title = "Gastos",
-                    value = formatClp(uiState.totalExpenses),
-                    supportingText = "acumulados (demo)",
+                    value = formatClp(report.totalExpenses),
+                    supportingText = "del mes",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -78,9 +98,10 @@ fun FinanceScreen(
             }
         }
 
-        item { SectionTitle("Movimientos recientes") }
+        item { SectionTitle("Movimientos del mes") }
 
-        items(uiState.movements, key = { it.id }) { movement ->
+        if (report.movements.isEmpty()) item { Text("Sin movimientos en este mes.") }
+        items(report.movements, key = { it.id }) { movement ->
             MovementCard(movement)
         }
     }

@@ -6,7 +6,8 @@ data class FinancialMovement(
     val category: String,
     val amount: Long,
     val date: String,
-    val type: MovementType
+    val type: MovementType,
+    val reservationId: String? = null
 )
 
 enum class MovementType(val label: String) {

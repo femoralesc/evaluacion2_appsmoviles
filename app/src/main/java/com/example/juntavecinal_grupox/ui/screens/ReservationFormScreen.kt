@@ -5,7 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
+import android.app.DatePickerDialog
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.juntavecinal_grupox.model.Reservation
+import com.example.juntavecinal_grupox.model.bookingSlots
+import com.example.juntavecinal_grupox.model.isBooked
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -24,42 +32,45 @@ import com.example.juntavecinal_grupox.ui.components.SectionTitle
 
 @Composable
 fun ReservationFormScreen(
+    reservations: List<Reservation>,
     onBack: () -> Unit,
-    onSubmit: (date: String, time: String, purpose: String) -> Unit
+    onSubmit: (date: String, time: String, purpose: String) -> Boolean
 ) {
-    var date by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("") }
-    var purpose by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var date by rememberSaveable { mutableStateOf("") }
+    var time by rememberSaveable { mutableStateOf("") }
+    var purpose by rememberSaveable { mutableStateOf("") }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Volver a reservas") }
+        TextButton(onClick = onBack) { Text("← Volver") }
         SectionTitle("Solicitar arriendo")
         Text("Completa los datos para enviar la solicitud de uso de la sede comunitaria.")
 
-        OutlinedTextField(
-            value = date,
-            onValueChange = { date = it; errorMessage = null },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Fecha") },
-            placeholder = { Text("DD/MM/AAAA") },
-            supportingText = { Text("Por ejemplo: 20/11/2026") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii)
-        )
-        OutlinedTextField(
-            value = time,
-            onValueChange = { time = it; errorMessage = null },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Hora de inicio") },
-            placeholder = { Text("HH:MM") },
-            supportingText = { Text("Usa formato de 24 horas") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii)
-        )
+        Button(onClick = {
+            val today = Calendar.getInstance()
+            DatePickerDialog(context, { _, year, month, day ->
+                date = String.format(Locale.ROOT, "%02d/%02d/%04d", day, month + 1, year)
+                time = ""
+                errorMessage = null
+            }, today.get(Calendar.YEAR), today.get(Calendar.MONTH), today.get(Calendar.DAY_OF_MONTH)).apply {
+                datePicker.minDate = System.currentTimeMillis()
+                show()
+            }
+        }) { Text(date.ifEmpty { "Seleccionar fecha" }) }
+
+        if (date.isNotEmpty()) {
+            Text("Bloques de una hora")
+            bookingSlots.forEach { slot ->
+                val occupied = reservations.isBooked(date, slot)
+                FilterChip(selected = time == slot, enabled = !occupied,
+                    onClick = { time = slot; errorMessage = null },
+                    label = { Text(if (occupied) "$slot · Ocupado" else "$slot · Disponible") })
+            }
+        }
         OutlinedTextField(
             value = purpose,
             onValueChange = { purpose = it; errorMessage = null },
@@ -75,13 +86,12 @@ fun ReservationFormScreen(
 
         Button(
             onClick = {
-                val dateIsValid = date.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))
-                val timeIsValid = time.matches(Regex("(?:[01]\\d|2[0-3]):[0-5]\\d"))
                 when {
-                    !dateIsValid -> errorMessage = "Ingresa la fecha con formato DD/MM/AAAA."
-                    !timeIsValid -> errorMessage = "Ingresa la hora con formato HH:MM, entre 00:00 y 23:59."
+                    date.isEmpty() -> errorMessage = "Selecciona una fecha."
+                    time.isEmpty() -> errorMessage = "Selecciona un bloque disponible."
                     purpose.isBlank() -> errorMessage = "Cuéntanos brevemente el motivo de la solicitud."
-                    else -> onSubmit(date.trim(), time.trim(), purpose.trim())
+                    !onSubmit(date, time, purpose.trim()) -> errorMessage = "El bloque ya está ocupado."
+                    else -> Unit
                 }
             },
             modifier = Modifier.fillMaxWidth()
