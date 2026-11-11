@@ -22,7 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal_grupox.data.model.MovementType
+import com.example.juntavecinal_grupox.model.MovementType
 import com.example.juntavecinal_grupox.ui.components.SectionTitle
 
 @Composable

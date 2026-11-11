@@ -16,7 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal_grupox.data.model.UserRole
+import com.example.juntavecinal_grupox.model.UserRole
 import com.example.juntavecinal_grupox.ui.components.SectionTitle
 
 @Composable

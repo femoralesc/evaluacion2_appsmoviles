@@ -1,4 +1,4 @@
-package com.example.juntavecinal_grupox.data.model
+package com.example.juntavecinal_grupox.model
 
 enum class UserRole(
     val title: String,

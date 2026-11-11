@@ -10,7 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal_grupox.data.model.ReservationStatus
+import com.example.juntavecinal_grupox.model.ReservationStatus
 import java.text.NumberFormat
 import java.util.Locale
 

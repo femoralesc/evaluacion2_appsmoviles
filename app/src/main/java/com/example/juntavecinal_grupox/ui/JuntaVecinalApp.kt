@@ -18,14 +18,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.juntavecinal_grupox.navigation.AppRoutes
+import com.example.juntavecinal_grupox.ui.navigation.AppRoutes
 import com.example.juntavecinal_grupox.ui.screens.FinanceScreen
 import com.example.juntavecinal_grupox.ui.screens.HomeScreen
 import com.example.juntavecinal_grupox.ui.screens.MovementFormScreen
 import com.example.juntavecinal_grupox.ui.screens.ProfileScreen
 import com.example.juntavecinal_grupox.ui.screens.ReservationFormScreen
 import com.example.juntavecinal_grupox.ui.screens.ReservationsScreen
-import com.example.juntavecinal_grupox.ui.viewmodels.MainViewModel
+import com.example.juntavecinal_grupox.viewmodel.MainViewModel
 
 private data class BottomNavigationItem(
     val route: String,

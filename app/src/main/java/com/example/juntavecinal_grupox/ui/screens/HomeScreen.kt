@@ -15,11 +15,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal_grupox.data.model.ReservationStatus
-import com.example.juntavecinal_grupox.data.model.UserRole
+import com.example.juntavecinal_grupox.model.ReservationStatus
+import com.example.juntavecinal_grupox.model.UserRole
 import com.example.juntavecinal_grupox.ui.components.SummaryCard
 import com.example.juntavecinal_grupox.ui.components.formatClp
-import com.example.juntavecinal_grupox.ui.viewmodels.AppUiState
+import com.example.juntavecinal_grupox.model.AppUiState
 
 @Composable
 fun HomeScreen(

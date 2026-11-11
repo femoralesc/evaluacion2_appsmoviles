@@ -1,65 +1,38 @@
-package com.example.juntavecinal_grupox.ui.viewmodels
+package com.example.juntavecinal_grupox.repository
 
-import androidx.lifecycle.ViewModel
-import com.example.juntavecinal_grupox.data.model.FinancialMovement
-import com.example.juntavecinal_grupox.data.model.MovementType
-import com.example.juntavecinal_grupox.data.model.Reservation
-import com.example.juntavecinal_grupox.data.model.ReservationStatus
-import com.example.juntavecinal_grupox.data.model.UserRole
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import com.example.juntavecinal_grupox.model.FinancialMovement
+import com.example.juntavecinal_grupox.model.MovementType
+import com.example.juntavecinal_grupox.model.Reservation
+import com.example.juntavecinal_grupox.model.ReservationStatus
+import com.example.juntavecinal_grupox.model.UserRole
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-data class AppUiState(
-    val activeProfile: UserRole = UserRole.VECINO,
-    val reservations: List<Reservation> = demoReservations(),
-    val movements: List<FinancialMovement> = demoMovements()
-) {
-    val totalIncome: Long
-        get() = movements.filter { it.type == MovementType.INGRESO }.sumOf { it.amount }
+class JuntaVecinalRepository {
+    var reservations = demoReservations()
+        private set
 
-    val totalExpenses: Long
-        get() = movements.filter { it.type == MovementType.GASTO }.sumOf { it.amount }
+    var movements = demoMovements()
+        private set
 
-    val balance: Long
-        get() = totalIncome - totalExpenses
-}
-
-class MainViewModel : ViewModel() {
-
-    private val _uiState = MutableStateFlow(AppUiState())
-    val uiState = _uiState.asStateFlow()
-
-    fun selectProfile(profile: UserRole) {
-        _uiState.update { currentState -> currentState.copy(activeProfile = profile) }
-    }
-
-    fun addReservation(date: String, time: String, purpose: String) {
+    fun addReservation(requesterName: String, date: String, time: String, purpose: String) {
         val reservation = Reservation(
             id = UUID.randomUUID().toString(),
-            requesterName = _uiState.value.activeProfile.demoName,
+            requesterName = requesterName,
             date = date,
             time = time,
             purpose = purpose,
             status = ReservationStatus.PENDIENTE
         )
 
-        _uiState.update { currentState ->
-            currentState.copy(reservations = listOf(reservation) + currentState.reservations)
-        }
+        reservations = listOf(reservation) + reservations
     }
 
     fun updateReservationStatus(id: String, status: ReservationStatus) {
-        _uiState.update { currentState ->
-            currentState.copy(
-                reservations = currentState.reservations.map { reservation ->
-                    if (reservation.id == id) reservation.copy(status = status) else reservation
-                }
-            )
+        reservations = reservations.map { reservation ->
+            if (reservation.id == id) reservation.copy(status = status) else reservation
         }
     }
 
@@ -75,9 +48,7 @@ class MainViewModel : ViewModel() {
             type = type
         )
 
-        _uiState.update { currentState ->
-            currentState.copy(movements = listOf(movement) + currentState.movements)
-        }
+        movements = listOf(movement) + movements
     }
 }
 

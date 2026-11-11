@@ -17,12 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal_grupox.data.model.Reservation
-import com.example.juntavecinal_grupox.data.model.ReservationStatus
-import com.example.juntavecinal_grupox.data.model.UserRole
+import com.example.juntavecinal_grupox.model.Reservation
+import com.example.juntavecinal_grupox.model.ReservationStatus
+import com.example.juntavecinal_grupox.model.UserRole
 import com.example.juntavecinal_grupox.ui.components.ReservationStatusBadge
 import com.example.juntavecinal_grupox.ui.components.SectionTitle
-import com.example.juntavecinal_grupox.ui.viewmodels.AppUiState
+import com.example.juntavecinal_grupox.model.AppUiState
 
 @Composable
 fun ReservationsScreen(

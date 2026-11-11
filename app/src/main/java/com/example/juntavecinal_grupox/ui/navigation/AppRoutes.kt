@@ -1,4 +1,4 @@
-package com.example.juntavecinal_grupox.navigation
+package com.example.juntavecinal_grupox.ui.navigation
 
 sealed class AppRoutes (val route: String) {
 

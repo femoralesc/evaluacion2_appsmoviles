@@ -1,4 +1,4 @@
-package com.example.juntavecinal_grupox.data.model
+package com.example.juntavecinal_grupox.model
 
 data class Reservation(
     val id: String,
