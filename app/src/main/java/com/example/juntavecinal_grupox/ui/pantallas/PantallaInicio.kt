@@ -103,7 +103,7 @@ fun PantallaInicio(
                     Text("Ver reservas")
                 }
                 Button(onClick = alAbrirFinanzas, modifier = Modifier.fillMaxWidth()) {
-                    Text("Consultar finanzas")
+                    Text("Consultar ${estadoAplicacion.perfilActivo.tituloFinanciero.lowercase()}")
                 }
             }
         }

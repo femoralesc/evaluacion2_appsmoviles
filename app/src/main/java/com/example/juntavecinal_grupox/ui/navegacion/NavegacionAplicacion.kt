@@ -48,6 +48,7 @@ fun NavegacionAplicacion(
     controladorNavegacion: NavHostController = rememberNavController()
 ) {
     val estadoAplicacion by modeloPrincipal.estadoAplicacion.collectAsStateWithLifecycle()
+    val resumenFinanciero by modeloPrincipal.resumenFinanciero.collectAsStateWithLifecycle()
     val avisos = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()
 
@@ -59,7 +60,7 @@ fun NavegacionAplicacion(
     val opciones = listOf(
         OpcionNavegacion("Inicio", RutasAplicacion.Inicio, Icons.Default.Home),
         OpcionNavegacion("Reservas", RutasAplicacion.Reservas, Icons.Default.CalendarMonth),
-        OpcionNavegacion("Finanzas", RutasAplicacion.Finanzas, Icons.Default.AccountBalanceWallet),
+        OpcionNavegacion(estadoAplicacion.perfilActivo.tituloFinanciero, RutasAplicacion.Finanzas, Icons.Default.AccountBalanceWallet),
         OpcionNavegacion("Perfil", RutasAplicacion.Perfil, Icons.Default.Person)
     )
 
@@ -131,7 +132,8 @@ fun NavegacionAplicacion(
             }
             composable(RutasAplicacion.Finanzas.ruta) {
                 PantallaFinanzas(
-                    estadoAplicacion = estadoAplicacion,
+                    resumen = resumenFinanciero,
+                    alCambiarMes = modeloPrincipal::cambiarMesFinanciero,
                     alCrearMovimiento = { modeloPrincipal.navegarA(RutasAplicacion.FormularioMovimiento) }
                 )
             }

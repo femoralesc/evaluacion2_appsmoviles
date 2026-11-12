@@ -1,4 +1,4 @@
-package com.example.juntavecinal_grupox.repository
+    package com.example.juntavecinal_grupox.repository
 
 import com.example.juntavecinal_grupox.model.MovimientoFinanciero
 import com.example.juntavecinal_grupox.model.TipoMovimiento

@@ -13,42 +13,33 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.Composable
+import com.example.juntavecinal_grupox.model.ResumenFinanciero
 import androidx.compose.material3.TextButton
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal_grupox.model.MovimientoFinanciero
 import com.example.juntavecinal_grupox.model.TipoMovimiento
-import com.example.juntavecinal_grupox.model.RolUsuario
 import com.example.juntavecinal_grupox.ui.componentes.TituloSeccion
 import com.example.juntavecinal_grupox.ui.componentes.TarjetaResumen
 import com.example.juntavecinal_grupox.ui.componentes.formatearPesos
-import com.example.juntavecinal_grupox.model.EstadoAplicacion
 
 @Composable
 fun PantallaFinanzas(
-    estadoAplicacion: EstadoAplicacion,
+    resumen: ResumenFinanciero,
+    alCambiarMes: (Int) -> Unit,
     alCrearMovimiento: () -> Unit
 ) {
-    var desplazamientoMes by rememberSaveable { mutableIntStateOf(0) }
-    val mes = Calendar.getInstance().apply { add(Calendar.MONTH, desplazamientoMes) }.time
-    val claveMes = SimpleDateFormat("MM/yyyy", Locale.ROOT).format(mes)
-    val nombreMes = SimpleDateFormat("MMMM yyyy", Locale.forLanguageTag("es-CL")).format(mes)
-    val rendicion = estadoAplicacion.copy(movimientos = estadoAplicacion.movimientos.filter { it.fecha.endsWith("/" + claveMes) })
-
     LazyColumn(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                TituloSeccion("Finanzas comunitarias")
+                TituloSeccion(resumen.titulo)
                 Text(
-                    "Resumen informativo con montos ficticios para la demostración.",
+                    if (resumen.puedeVerDetalle) "Consulta los movimientos y recursos de la comunidad."
+                    else "Consulta la rendición mensual de la comunidad.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -58,9 +49,9 @@ fun PantallaFinanzas(
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(onClick = { desplazamientoMes-- }) { Text("Anterior") }
-                Text(nombreMes)
-                TextButton(onClick = { desplazamientoMes++ }) { Text("Siguiente") }
+                TextButton(onClick = { alCambiarMes(-1) }) { Text("Anterior") }
+                Text(resumen.nombreMes)
+                TextButton(onClick = { alCambiarMes(1) }) { Text("Siguiente") }
             }
         }
 
@@ -68,7 +59,7 @@ fun PantallaFinanzas(
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Saldo del mes", style = MaterialTheme.typography.titleMedium)
-                    Text(formatearPesos(rendicion.saldo), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(formatearPesos(resumen.saldo), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -77,20 +68,20 @@ fun PantallaFinanzas(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TarjetaResumen(
                     titulo = "Ingresos",
-                    value = formatearPesos(rendicion.totalIngresos),
+                    value = formatearPesos(resumen.totalIngresos),
                     supportingText = "del mes",
                     modifier = Modifier.weight(1f)
                 )
                 TarjetaResumen(
                     titulo = "Gastos",
-                    value = formatearPesos(rendicion.totalGastos),
+                    value = formatearPesos(resumen.totalGastos),
                     supportingText = "del mes",
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        if (estadoAplicacion.perfilActivo == RolUsuario.TESORERIA) {
+        if (resumen.puedeRegistrar) {
             item {
                 Button(onClick = alCrearMovimiento, modifier = Modifier.fillMaxWidth()) {
                     Text("Registrar ingreso o gasto")
@@ -98,11 +89,25 @@ fun PantallaFinanzas(
             }
         }
 
-        item { TituloSeccion("Movimientos del mes") }
-
-        if (rendicion.movimientos.isEmpty()) item { Text("Sin movimientos en este mes.") }
-        items(rendicion.movimientos, key = { it.id }) { movimiento ->
-            TarjetaMovimiento(movimiento)
+        if (resumen.puedeVerDetalle) {
+            item { TituloSeccion("Movimientos del mes") }
+            if (resumen.movimientos.isEmpty()) {
+                item { Text("Sin movimientos en este mes.") }
+            }
+            items(resumen.movimientos, key = { it.id }) { movimiento ->
+                TarjetaMovimiento(movimiento)
+            }
+        } else {
+            item { TituloSeccion("Rendición mensual") }
+            if (resumen.ingresosPorCategoria.isEmpty() && resumen.gastosPorCategoria.isEmpty()) {
+                item { Text("Sin movimientos en este mes.") }
+            }
+            item {
+                ResumenCategorias("Ingresos por categoría", resumen.ingresosPorCategoria)
+            }
+            item {
+                ResumenCategorias("Gastos por categoría", resumen.gastosPorCategoria)
+            }
         }
     }
 }
@@ -130,6 +135,22 @@ private fun TarjetaMovimiento(movimiento: MovimientoFinanciero) {
                 )
             }
             Text("$signo ${formatearPesos(movimiento.monto)}", style = MaterialTheme.typography.titleMedium, color = colorMonto)
+        }
+    }
+}
+
+@Composable
+private fun ResumenCategorias(titulo: String, totales: Map<String, Long>) {
+    if (totales.isEmpty()) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(titulo, style = MaterialTheme.typography.titleMedium)
+            totales.forEach { (categoria, total) ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(categoria, modifier = Modifier.weight(1f))
+                    Text(formatearPesos(total))
+                }
+            }
         }
     }
 }

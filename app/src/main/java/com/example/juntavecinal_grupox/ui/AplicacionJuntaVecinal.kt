@@ -49,6 +49,7 @@ private val elementosBarraInferior = listOf(
 @Composable
 fun AplicacionJuntaVecinal(modeloPrincipal: PrincipalViewModel = viewModel()) {
     val estadoAplicacion by modeloPrincipal.estadoAplicacion.collectAsStateWithLifecycle()
+    val resumenFinanciero by modeloPrincipal.resumenFinanciero.collectAsStateWithLifecycle()
     val controladorNavegacion = rememberNavController()
     val entradaActual by controladorNavegacion.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route ?: RutasAplicacion.Inicio.ruta
@@ -98,7 +99,7 @@ fun AplicacionJuntaVecinal(modeloPrincipal: PrincipalViewModel = viewModel()) {
                                 }
                             },
                             icon = { Text(item.simbolo) },
-                            label = { Text(item.etiqueta) }
+                            label = { Text(if (item.ruta == RutasAplicacion.Finanzas.ruta) estadoAplicacion.perfilActivo.tituloFinanciero else item.etiqueta) }
                         )
                     }
                 }
@@ -136,7 +137,8 @@ fun AplicacionJuntaVecinal(modeloPrincipal: PrincipalViewModel = viewModel()) {
             }
             composable(RutasAplicacion.Finanzas.ruta) {
                 PantallaFinanzas(
-                    estadoAplicacion = estadoAplicacion,
+                    resumen = resumenFinanciero,
+                    alCambiarMes = modeloPrincipal::cambiarMesFinanciero,
                     alCrearMovimiento = { controladorNavegacion.navigate(RutasAplicacion.FormularioMovimiento.ruta) }
                 )
             }

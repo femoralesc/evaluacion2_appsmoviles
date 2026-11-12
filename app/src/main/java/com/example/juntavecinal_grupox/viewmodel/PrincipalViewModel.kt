@@ -1,5 +1,12 @@
 package com.example.juntavecinal_grupox.viewmodel
 
+import com.example.juntavecinal_grupox.model.ResumenFinanciero
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.juntavecinal_grupox.model.EstadoAplicacion
@@ -23,10 +30,41 @@ class PrincipalViewModel : ViewModel() {
     )
     val estadoAplicacion = _estadoAplicacion.asStateFlow()
 
+    val resumenFinanciero = estadoAplicacion.map { crearResumenFinanciero(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
+            crearResumenFinanciero(_estadoAplicacion.value))
+
+    fun cambiarMesFinanciero(desplazamiento: Int) {
+        _estadoAplicacion.update { it.copy(desplazamientoMes = it.desplazamientoMes + desplazamiento) }
+    }
+
+    private fun crearResumenFinanciero(estado: EstadoAplicacion): ResumenFinanciero {
+        val mes = Calendar.getInstance().apply { add(Calendar.MONTH, estado.desplazamientoMes) }.time
+        val claveMes = SimpleDateFormat("MM/yyyy", Locale.ROOT).format(mes)
+        val nombreMes = SimpleDateFormat("MMMM yyyy", Locale.forLanguageTag("es-CL")).format(mes)
+        val movimientos = estado.movimientos.filter { it.fecha.endsWith("/" + claveMes) }
+        val ingresos = movimientos.filter { it.tipo == TipoMovimiento.INGRESO }
+        val gastos = movimientos.filter { it.tipo == TipoMovimiento.GASTO }
+        val perfil = estado.perfilActivo
+        return ResumenFinanciero(
+            titulo = perfil.tituloFinanciero,
+            nombreMes = nombreMes,
+            totalIngresos = ingresos.sumOf { it.monto },
+            totalGastos = gastos.sumOf { it.monto },
+            ingresosPorCategoria = ingresos.groupBy { it.categoria }.mapValues { (_, lista) -> lista.sumOf { it.monto } },
+            gastosPorCategoria = gastos.groupBy { it.categoria }.mapValues { (_, lista) -> lista.sumOf { it.monto } },
+            movimientos = if (perfil.puedeVerDetalleFinanciero) movimientos else emptyList(),
+            puedeVerDetalle = perfil.puedeVerDetalleFinanciero,
+            puedeRegistrar = perfil.puedeRegistrarMovimientos
+        )
+    }
+
     private val _eventoNavegacion = Channel<EventoNavegacion>()
     val eventoNavegacion = _eventoNavegacion.receiveAsFlow()
 
     fun navegarA(ruta: RutasAplicacion, volverHasta: RutasAplicacion? = null, incluirDestino: Boolean = false) {
+        if (ruta == RutasAplicacion.FormularioMovimiento &&
+            !_estadoAplicacion.value.perfilActivo.puedeRegistrarMovimientos) return
         viewModelScope.launch {
             _eventoNavegacion.send(
                 EventoNavegacion.IrA(
@@ -58,6 +96,7 @@ class PrincipalViewModel : ViewModel() {
     }
 
     fun actualizarEstadoReserva(id: String, estado: EstadoReserva): Boolean {
+        if (_estadoAplicacion.value.perfilActivo != RolUsuario.DIRECTIVA) return false
         val actualizada = repositorio.actualizarEstadoReserva(id, estado)
         _estadoAplicacion.update { it.copy(reservas = repositorio.reservas) }
         return actualizada
@@ -71,6 +110,7 @@ class PrincipalViewModel : ViewModel() {
     }
 
     fun registrarMovimiento(titulo: String, categoria: String, monto: Long, tipo: TipoMovimiento) {
+        if (!_estadoAplicacion.value.perfilActivo.puedeRegistrarMovimientos) return
         repositorio.registrarMovimiento(titulo, categoria, monto, tipo)
         _estadoAplicacion.update { it.copy(movimientos = repositorio.movimientos) }
         volver()
