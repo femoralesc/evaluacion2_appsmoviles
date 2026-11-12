@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import com.example.juntavecinal_grupox.ui.pantallas.PantallaAcceso
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -43,12 +45,29 @@ private data class OpcionNavegacion(
 )
 
 @Composable
-fun NavegacionAplicacion(
+fun NavegacionAplicacion(modeloPrincipal: PrincipalViewModel) {
+    val estado by modeloPrincipal.estadoAplicacion.collectAsStateWithLifecycle()
+    val usuario = estado.usuarioActual
+    if (usuario == null) {
+        PantallaAcceso(
+            mensajeError = estado.errorAcceso,
+            alCambiarDatos = modeloPrincipal::limpiarErrorAcceso,
+            alIngresar = modeloPrincipal::iniciarSesion
+        )
+    } else {
+        key(usuario.id) {
+            NavegacionSesion(modeloPrincipal)
+        }
+    }
+}
+
+@Composable
+private fun NavegacionSesion(
     modeloPrincipal: PrincipalViewModel,
     controladorNavegacion: NavHostController = rememberNavController()
 ) {
     val estadoAplicacion by modeloPrincipal.estadoAplicacion.collectAsStateWithLifecycle()
-    val resumenFinanciero by modeloPrincipal.resumenFinanciero.collectAsStateWithLifecycle()
+    val resumenFinanciero = modeloPrincipal.obtenerResumenFinanciero(estadoAplicacion)
     val avisos = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()
 
@@ -71,7 +90,7 @@ fun NavegacionAplicacion(
         modeloPrincipal.eventoNavegacion.collect { evento ->
             when (evento) {
                 is EventoNavegacion.IrA -> {
-                    controladorNavegacion.navigate(evento.ruta.ruta) {
+                    if (modeloPrincipal.puedeAcceder(evento.ruta)) controladorNavegacion.navigate(evento.ruta.ruta) {
                         evento.rutaHasta?.let { rutaDestino ->
                             popUpTo(rutaDestino.ruta) {
                                 inclusive = evento.incluirDestino
@@ -138,13 +157,15 @@ fun NavegacionAplicacion(
                 )
             }
             composable(RutasAplicacion.Perfil.ruta) {
-                PantallaPerfil(
-                    perfilActivo = estadoAplicacion.perfilActivo,
-                    alSeleccionarPerfil = { perfil -> modeloPrincipal.seleccionarPerfil(perfil) }
-                )
+                estadoAplicacion.usuarioActual?.let { usuario ->
+                    PantallaPerfil(
+                        usuario = usuario,
+                        alCerrarSesion = modeloPrincipal::cerrarSesion
+                    )
+                }
             }
             composable(RutasAplicacion.FormularioReserva.ruta) {
-                PantallaFormularioReserva(
+                if (modeloPrincipal.puedeAcceder(RutasAplicacion.FormularioReserva)) PantallaFormularioReserva(
                     reservas = estadoAplicacion.reservas,
                     alVolver = { modeloPrincipal.volver() },
                     alEnviar = { fecha, hora, motivo ->
@@ -157,7 +178,7 @@ fun NavegacionAplicacion(
                 )
             }
             composable(RutasAplicacion.FormularioMovimiento.ruta) {
-                PantallaFormularioMovimiento(
+                if (modeloPrincipal.puedeAcceder(RutasAplicacion.FormularioMovimiento)) PantallaFormularioMovimiento(
                     alVolver = { modeloPrincipal.volver() },
                     alEnviar = { titulo, categoria, monto, tipo ->
                         modeloPrincipal.registrarMovimiento(titulo, categoria, monto, tipo)

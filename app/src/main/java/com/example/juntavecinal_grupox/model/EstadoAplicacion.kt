@@ -1,11 +1,15 @@
 package com.example.juntavecinal_grupox.model
 
 data class EstadoAplicacion(
-    val perfilActivo: RolUsuario = RolUsuario.VECINO,
+    val usuarioActual: Usuario? = null,
+    val errorAcceso: String? = null,
     val reservas: List<Reserva> = emptyList(),
     val movimientos: List<MovimientoFinanciero> = emptyList(),
     val desplazamientoMes: Int = 0
 ) {
+    val perfilActivo: RolUsuario
+        get() = usuarioActual?.rol ?: RolUsuario.VECINO
+
     val totalIngresos: Long
         get() = movimientos.filter { it.tipo == TipoMovimiento.INGRESO }.sumOf { it.monto }
 
