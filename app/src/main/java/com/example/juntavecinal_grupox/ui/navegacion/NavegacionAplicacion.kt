@@ -10,6 +10,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.example.juntavecinal_grupox.ui.tema.AzulMarino
+import com.example.juntavecinal_grupox.ui.tema.VerdeAgua
+import com.example.juntavecinal_grupox.ui.tema.GrisCarbon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -110,10 +116,21 @@ private fun NavegacionSesion(
         snackbarHost = { SnackbarHost(avisos) },
         bottomBar = {
             if (mostrarBarraInferior) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = AzulMarino,
+                    contentColor = Color.White,
+                    tonalElevation = 0.dp
+                ) {
                     opciones.forEach { item ->
                         NavigationBarItem(
                             selected = rutaActual == item.ruta.ruta,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = GrisCarbon,
+                                selectedTextColor = Color.White,
+                                indicatorColor = VerdeAgua,
+                                unselectedIconColor = Color.White,
+                                unselectedTextColor = Color.White
+                            ),
                             onClick = {
                                 if (rutaActual != item.ruta.ruta) {
                                     modeloPrincipal.navegarA(item.ruta, volverHasta = RutasAplicacion.Inicio)

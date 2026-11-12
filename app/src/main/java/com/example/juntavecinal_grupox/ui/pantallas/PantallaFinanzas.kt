@@ -115,7 +115,7 @@ fun PantallaFinanzas(
 @Composable
 private fun TarjetaMovimiento(movimiento: MovimientoFinanciero) {
     val esIngreso = movimiento.tipo == TipoMovimiento.INGRESO
-    val colorMonto = if (esIngreso) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val colorMonto = if (esIngreso) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val signo = if (esIngreso) "+" else "−"
 
     Card(modifier = Modifier.fillMaxWidth()) {
