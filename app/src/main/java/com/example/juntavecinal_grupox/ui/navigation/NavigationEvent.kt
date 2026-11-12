@@ -9,7 +9,7 @@ sealed class NavigationEvent {
             val route: AppRoutes,
             val popUptoRoute: AppRoutes? = null,
             val inclusive: Boolean = false,
-            val singleTop: Boolean = false
+            val singleTop: Boolean = true
 
         ) : NavigationEvent()
 

@@ -52,7 +52,7 @@ class MainViewModel : ViewModel() {
         val added = repository.addReservation(_uiState.value.activeProfile.demoName, date, time, purpose)
         if (added) {
             _uiState.update { it.copy(reservations = repository.reservations) }
-            navigateBack()
+            navigateTo(AppRoutes.Reservations, popUpTo = AppRoutes.Home)
         }
         return added
     }
