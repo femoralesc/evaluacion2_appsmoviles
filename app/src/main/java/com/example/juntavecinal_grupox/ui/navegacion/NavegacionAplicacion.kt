@@ -163,6 +163,15 @@ private fun NavegacionSesion(
                     estadoAplicacion = estadoAplicacion,
                     alRegistrarPago = { id, monto -> modeloPrincipal.registrarPago(id, monto) },
                     alSolicitarReserva = { modeloPrincipal.navegarA(RutasAplicacion.FormularioReserva) },
+                    alEditarReserva = modeloPrincipal::abrirEdicionReserva,
+                    puedeModificarReserva = modeloPrincipal::puedeModificarReserva,
+                    alCancelarReserva = { id ->
+                        val cancelada = modeloPrincipal.cancelarReserva(id)
+                        alcance.launch {
+                            avisos.showSnackbar(if (cancelada) "Solicitud cancelada" else "La solicitud ya no se puede cancelar")
+                        }
+                        cancelada
+                    },
                     alActualizarEstado = { id, estado -> modeloPrincipal.actualizarEstadoReserva(id, estado) }
                 )
             }
@@ -193,6 +202,28 @@ private fun NavegacionSesion(
                         guardada
                     }
                 )
+            }
+            composable(RutasAplicacion.EditarReserva.ruta) {
+                val reserva = modeloPrincipal.obtenerReservaEnEdicion()
+                if (reserva != null) {
+                    key(reserva.id) {
+                        PantallaFormularioReserva(
+                            reservas = estadoAplicacion.reservas,
+                            reservaInicial = reserva,
+                            alVolver = modeloPrincipal::volver,
+                            alEnviar = { fecha, hora, motivo ->
+                                val guardada = modeloPrincipal.guardarEdicionReserva(fecha, hora, motivo)
+                                if (guardada) alcance.launch { avisos.showSnackbar("Solicitud actualizada") }
+                                guardada
+                            }
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.layout.Column(Modifier.padding(20.dp)) {
+                        Text("La solicitud ya no está disponible para editar.")
+                        androidx.compose.material3.TextButton(onClick = modeloPrincipal::volver) { Text("Volver") }
+                    }
+                }
             }
             composable(RutasAplicacion.FormularioMovimiento.ruta) {
                 if (modeloPrincipal.puedeAcceder(RutasAplicacion.FormularioMovimiento)) PantallaFormularioMovimiento(

@@ -34,11 +34,14 @@ fun PantallaReservas(
     estadoAplicacion: EstadoAplicacion,
     alRegistrarPago: (String, Long) -> Boolean,
     alSolicitarReserva: () -> Unit,
+    alEditarReserva: (String) -> Unit,
+    alCancelarReserva: (String) -> Boolean,
+    puedeModificarReserva: (Reserva) -> Boolean,
     alActualizarEstado: (String, EstadoReserva) -> Unit
 ) {
     val esVecino = estadoAplicacion.perfilActivo == RolUsuario.VECINO
     val reservas = if (esVecino) {
-        estadoAplicacion.reservas.filter { it.nombreSolicitante == estadoAplicacion.perfilActivo.nombreDemostracion }
+        estadoAplicacion.reservas.filter { it.nombreSolicitante == estadoAplicacion.usuarioActual?.nombre }
     } else {
         estadoAplicacion.reservas
     }
@@ -75,6 +78,9 @@ fun PantallaReservas(
         items(reservas, key = { it.id }) { reserva ->
             TarjetaReserva(
                 reserva = reserva,
+                puedeModificar = puedeModificarReserva(reserva),
+                alEditarReserva = alEditarReserva,
+                alCancelarReserva = alCancelarReserva,
                 pagada = estadoAplicacion.movimientos.any { it.idReserva == reserva.id },
                 ocupado = estadoAplicacion.reservas.estaOcupado(reserva.fecha, reserva.hora),
                 alRegistrarPago = if (estadoAplicacion.perfilActivo == RolUsuario.TESORERIA) alRegistrarPago else null,
@@ -88,6 +94,9 @@ fun PantallaReservas(
 @Composable
 private fun TarjetaReserva(
     reserva: Reserva,
+    puedeModificar: Boolean,
+    alEditarReserva: (String) -> Unit,
+    alCancelarReserva: (String) -> Boolean,
     pagada: Boolean,
     ocupado: Boolean,
     alRegistrarPago: ((String, Long) -> Boolean)?,
@@ -112,6 +121,30 @@ private fun TarjetaReserva(
             }
             Text("Solicita: ${reserva.nombreSolicitante}", style = MaterialTheme.typography.bodyMedium)
             Text("${reserva.fecha} · ${reserva.hora} · Sede comunitaria", style = MaterialTheme.typography.bodyMedium)
+
+            if (puedeModificar) {
+                var confirmarCancelacion by rememberSaveable { mutableStateOf(false) }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = { alEditarReserva(reserva.id) }) { Text("Editar") }
+                    TextButton(onClick = { confirmarCancelacion = true }) { Text("Cancelar solicitud") }
+                }
+                if (confirmarCancelacion) {
+                    AlertDialog(
+                        onDismissRequest = { confirmarCancelacion = false },
+                        title = { Text("¿Cancelar solicitud?") },
+                        text = { Text("Se cancelará la solicitud de " + reserva.motivo + " del " + reserva.fecha + ".") },
+                        confirmButton = {
+                            Button(onClick = {
+                                alCancelarReserva(reserva.id)
+                                confirmarCancelacion = false
+                            }) { Text("Sí, cancelar") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmarCancelacion = false }) { Text("Conservar solicitud") }
+                        }
+                    )
+                }
+            }
 
             if (reserva.estado == EstadoReserva.APROBADA) {
                 Text(if (pagada) "Pagada" else "Pago pendiente")

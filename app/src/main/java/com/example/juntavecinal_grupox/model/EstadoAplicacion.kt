@@ -5,7 +5,8 @@ data class EstadoAplicacion(
     val errorAcceso: String? = null,
     val reservas: List<Reserva> = emptyList(),
     val movimientos: List<MovimientoFinanciero> = emptyList(),
-    val desplazamientoMes: Int = 0
+    val desplazamientoMes: Int = 0,
+    val idReservaEnEdicion: String? = null
 ) {
     val perfilActivo: RolUsuario
         get() = usuarioActual?.rol ?: RolUsuario.VECINO

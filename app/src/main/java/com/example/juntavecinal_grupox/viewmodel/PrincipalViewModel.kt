@@ -9,6 +9,7 @@ import com.example.juntavecinal_grupox.model.EstadoAplicacion
 import com.example.juntavecinal_grupox.model.TipoMovimiento
 import com.example.juntavecinal_grupox.model.EstadoReserva
 import com.example.juntavecinal_grupox.model.RolUsuario
+import com.example.juntavecinal_grupox.model.Reserva
 import com.example.juntavecinal_grupox.repository.RepositorioAcceso
 import com.example.juntavecinal_grupox.repository.RepositorioJuntaVecinal
 import com.example.juntavecinal_grupox.ui.navegacion.RutasAplicacion
@@ -92,6 +93,7 @@ class PrincipalViewModel : ViewModel() {
         val usuario = _estadoAplicacion.value.usuarioActual ?: return false
         return when (ruta) {
             RutasAplicacion.FormularioReserva -> usuario.rol == RolUsuario.VECINO
+            RutasAplicacion.EditarReserva -> obtenerReservaEnEdicion() != null
             RutasAplicacion.FormularioMovimiento -> usuario.rol.puedeRegistrarMovimientos
             else -> true
         }
@@ -122,6 +124,42 @@ class PrincipalViewModel : ViewModel() {
             navegarA(RutasAplicacion.Reservas, volverHasta = RutasAplicacion.Inicio)
         }
         return agregada
+    }
+
+    fun puedeModificarReserva(reserva: Reserva): Boolean {
+        val usuario = _estadoAplicacion.value.usuarioActual ?: return false
+        return usuario.rol == RolUsuario.VECINO &&
+            reserva.nombreSolicitante == usuario.nombre && reserva.estado == EstadoReserva.PENDIENTE
+    }
+
+    fun abrirEdicionReserva(id: String) {
+        val reserva = _estadoAplicacion.value.reservas.find { it.id == id } ?: return
+        if (!puedeModificarReserva(reserva)) return
+        _estadoAplicacion.update { it.copy(idReservaEnEdicion = id) }
+        navegarA(RutasAplicacion.EditarReserva)
+    }
+
+    fun obtenerReservaEnEdicion(): Reserva? {
+        val estado = _estadoAplicacion.value
+        return estado.reservas.find { it.id == estado.idReservaEnEdicion && puedeModificarReserva(it) }
+    }
+
+    fun guardarEdicionReserva(fecha: String, hora: String, motivo: String): Boolean {
+        val reserva = obtenerReservaEnEdicion() ?: return false
+        val nombre = _estadoAplicacion.value.usuarioActual?.nombre ?: return false
+        if (!repositorio.editarReserva(reserva.id, nombre, fecha, hora, motivo)) return false
+        _estadoAplicacion.update { it.copy(reservas = repositorio.reservas, idReservaEnEdicion = null) }
+        navegarA(RutasAplicacion.Reservas, volverHasta = RutasAplicacion.Inicio)
+        return true
+    }
+
+    fun cancelarReserva(id: String): Boolean {
+        val reserva = _estadoAplicacion.value.reservas.find { it.id == id } ?: return false
+        if (!puedeModificarReserva(reserva)) return false
+        val nombre = _estadoAplicacion.value.usuarioActual?.nombre ?: return false
+        if (!repositorio.cancelarReserva(id, nombre)) return false
+        _estadoAplicacion.update { it.copy(reservas = repositorio.reservas, idReservaEnEdicion = null) }
+        return true
     }
 
     fun actualizarEstadoReserva(id: String, estado: EstadoReserva): Boolean {

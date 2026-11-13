@@ -44,6 +44,7 @@ fun IndicadorEstadoReserva(estado: EstadoReserva) {
         EstadoReserva.PENDIENTE -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
         EstadoReserva.APROBADA -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
         EstadoReserva.RECHAZADA -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        EstadoReserva.CANCELADA -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Surface(

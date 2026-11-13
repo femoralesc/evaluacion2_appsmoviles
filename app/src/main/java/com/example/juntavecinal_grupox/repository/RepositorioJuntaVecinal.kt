@@ -1,4 +1,4 @@
-    package com.example.juntavecinal_grupox.repository
+package com.example.juntavecinal_grupox.repository
 
 import com.example.juntavecinal_grupox.model.MovimientoFinanciero
 import com.example.juntavecinal_grupox.model.TipoMovimiento
@@ -34,7 +34,30 @@ class RepositorioJuntaVecinal {
         return true
     }
 
+    fun editarReserva(id: String, nombreSolicitante: String, fecha: String, hora: String, motivo: String): Boolean {
+        val reserva = reservas.find {
+            it.id == id && it.nombreSolicitante == nombreSolicitante && it.estado == EstadoReserva.PENDIENTE
+        } ?: return false
+        if (fecha.isBlank() || hora !in bloquesHorarios || motivo.isBlank() || reservas.estaOcupado(fecha, hora)) return false
+
+        reservas = reservas.map {
+            if (it.id == reserva.id) it.copy(fecha = fecha, hora = hora, motivo = motivo.trim()) else it
+        }
+        return true
+    }
+
+    fun cancelarReserva(id: String, nombreSolicitante: String): Boolean {
+        val reserva = reservas.find {
+            it.id == id && it.nombreSolicitante == nombreSolicitante && it.estado == EstadoReserva.PENDIENTE
+        } ?: return false
+        reservas = reservas.map {
+            if (it.id == reserva.id) it.copy(estado = EstadoReserva.CANCELADA) else it
+        }
+        return true
+    }
+
     fun actualizarEstadoReserva(id: String, estado: EstadoReserva): Boolean {
+        if (estado != EstadoReserva.APROBADA && estado != EstadoReserva.RECHAZADA) return false
         val solicitud = reservas.find { it.id == id && it.estado == EstadoReserva.PENDIENTE } ?: return false
         if (estado == EstadoReserva.APROBADA && reservas.estaOcupado(solicitud.fecha, solicitud.hora)) return false
         reservas = reservas.map { reserva ->

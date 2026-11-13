@@ -12,6 +12,8 @@ sealed class RutasAplicacion (val ruta: String) {
 
     data object FormularioReserva : RutasAplicacion(ruta = "reservation_form_page")
 
+    data object EditarReserva : RutasAplicacion(ruta = "editar_reserva")
+
     data object FormularioMovimiento : RutasAplicacion(ruta = "movement_form_page")
 
 

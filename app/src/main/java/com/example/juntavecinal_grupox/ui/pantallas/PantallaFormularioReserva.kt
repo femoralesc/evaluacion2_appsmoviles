@@ -36,12 +36,13 @@ import java.util.Locale
 @Composable
 fun PantallaFormularioReserva(
     reservas: List<Reserva>,
+    reservaInicial: Reserva? = null,
     alVolver: () -> Unit,
     alEnviar: (fecha: String, hora: String, motivo: String) -> Boolean
 ) {
-    var fecha by rememberSaveable { mutableStateOf("") }
-    var hora by rememberSaveable { mutableStateOf("") }
-    var motivo by rememberSaveable { mutableStateOf("") }
+    var fecha by rememberSaveable { mutableStateOf(reservaInicial?.fecha.orEmpty()) }
+    var hora by rememberSaveable { mutableStateOf(reservaInicial?.hora.orEmpty()) }
+    var motivo by rememberSaveable { mutableStateOf(reservaInicial?.motivo.orEmpty()) }
     var mensajeError by rememberSaveable { mutableStateOf<String?>(null) }
 
     val contexto = LocalContext.current
@@ -55,11 +56,16 @@ fun PantallaFormularioReserva(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         TextButton(onClick = alVolver) { Text("← Volver") }
-        TituloSeccion("Solicitar arriendo")
-        Text("Completa los datos para enviar la solicitud de uso de la sede comunitaria.")
+        TituloSeccion(if (reservaInicial == null) "Solicitar arriendo" else "Editar solicitud")
+        Text(if (reservaInicial == null) "Completa los datos para enviar la solicitud de uso de la sede comunitaria."
+            else "Actualiza la fecha, el bloque o el motivo de tu solicitud pendiente.")
 
         Button(onClick = {
             val hoy = Calendar.getInstance()
+            val fechaElegida = runCatching {
+                java.text.SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).parse(fecha)
+            }.getOrNull()
+            if (fechaElegida != null) hoy.time = fechaElegida
             DatePickerDialog(
                 contexto,
                 { _, anio, mes, dia ->
@@ -116,13 +122,14 @@ fun PantallaFormularioReserva(
                     fecha.isEmpty() -> mensajeError = "Selecciona una fecha."
                     hora.isEmpty() -> mensajeError = "Selecciona un bloque disponible."
                     motivo.isBlank() -> mensajeError = "Cuéntanos brevemente el motivo de la solicitud."
-                    !alEnviar(fecha, hora, motivo.trim()) -> mensajeError = "El bloque ya está ocupado."
+                    !alEnviar(fecha, hora, motivo.trim()) -> mensajeError = if (reservaInicial == null) "El bloque ya está ocupado."
+                        else "No se pudo guardar. Revisa la disponibilidad y que la solicitud siga pendiente."
                     else -> Unit
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Enviar solicitud")
+            Text(if (reservaInicial == null) "Enviar solicitud" else "Guardar cambios")
         }
     }
 }

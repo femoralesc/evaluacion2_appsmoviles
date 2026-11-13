@@ -12,7 +12,8 @@ data class Reserva(
 enum class EstadoReserva(val etiqueta: String) {
     PENDIENTE("Pendiente"),
     APROBADA("Aprobada"),
-    RECHAZADA("Rechazada")
+    RECHAZADA("Rechazada"),
+    CANCELADA("Cancelada")
 }
 
 // Cada hora identifica un bloque de una hora en la sede.
