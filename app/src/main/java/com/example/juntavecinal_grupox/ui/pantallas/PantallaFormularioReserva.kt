@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal_grupox.model.Reserva
@@ -45,13 +46,28 @@ fun PantallaFormularioReserva(
     var motivo by rememberSaveable { mutableStateOf(reservaInicial?.motivo.orEmpty()) }
     var mensajeError by rememberSaveable { mutableStateOf<String?>(null) }
 
+    var guardado by rememberSaveable { mutableStateOf(false) }
+    var intentoEnviar by rememberSaveable { mutableStateOf(false) }
+    val foco = LocalFocusManager.current
     val contexto = LocalContext.current
+
+    fun enviar() {
+        if (guardado) return
+        intentoEnviar = true
+        mensajeError = null
+        if (fecha.isEmpty() || hora.isEmpty() || motivo.isBlank()) return
+        foco.clearFocus()
+        guardado = alEnviar(fecha, hora, motivo.trim())
+        if (!guardado) {
+            mensajeError = "No se pudo guardar. Revisa la disponibilidad y que la solicitud siga pendiente."
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -84,6 +100,10 @@ fun PantallaFormularioReserva(
             Text(fecha.ifEmpty { "Seleccionar fecha" })
         }
 
+        if (intentoEnviar && fecha.isEmpty()) {
+            Text("Selecciona una fecha.", color = MaterialTheme.colorScheme.error)
+        }
+
         if (fecha.isNotEmpty()) {
             Text("Bloques de una hora", style = MaterialTheme.typography.titleSmall)
             FlowRow(
@@ -103,11 +123,19 @@ fun PantallaFormularioReserva(
             }
         }
 
+        if (intentoEnviar && fecha.isNotEmpty() && hora.isEmpty()) {
+            Text("Selecciona un bloque disponible.", color = MaterialTheme.colorScheme.error)
+        }
+
         OutlinedTextField(
             value = motivo,
             onValueChange = { motivo = it; mensajeError = null },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Motivo de la solicitud") },
+            isError = intentoEnviar && motivo.isBlank(),
+            supportingText = {
+                if (intentoEnviar && motivo.isBlank()) Text("Cuéntanos brevemente el motivo de la solicitud.")
+            },
             minLines = 3,
             maxLines = 5
         )
@@ -117,16 +145,8 @@ fun PantallaFormularioReserva(
         }
 
         Button(
-            onClick = {
-                when {
-                    fecha.isEmpty() -> mensajeError = "Selecciona una fecha."
-                    hora.isEmpty() -> mensajeError = "Selecciona un bloque disponible."
-                    motivo.isBlank() -> mensajeError = "Cuéntanos brevemente el motivo de la solicitud."
-                    !alEnviar(fecha, hora, motivo.trim()) -> mensajeError = if (reservaInicial == null) "El bloque ya está ocupado."
-                        else "No se pudo guardar. Revisa la disponibilidad y que la solicitud siga pendiente."
-                    else -> Unit
-                }
-            },
+            onClick = { enviar() },
+            enabled = !guardado,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (reservaInicial == null) "Enviar solicitud" else "Guardar cambios")

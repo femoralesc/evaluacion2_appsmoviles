@@ -4,6 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import com.example.juntavecinal_grupox.model.interpretarMontoEnPesos
+import com.example.juntavecinal_grupox.ui.componentes.EstadoVacio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -71,7 +81,11 @@ fun PantallaReservas(
 
         if (reservas.isEmpty()) {
             item {
-                Text("Todavía no tienes solicitudes. Cuando envíes una, aparecerá aquí.")
+                EstadoVacio(
+                    "Sin reservas",
+                    if (esVecino) "Todavía no tienes solicitudes. Usa Nueva solicitud de arriendo para comenzar."
+                    else "Las solicitudes de uso de la sede aparecerán aquí."
+                )
             }
         }
 
@@ -91,6 +105,7 @@ fun PantallaReservas(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TarjetaReserva(
     reserva: Reserva,
@@ -124,7 +139,8 @@ private fun TarjetaReserva(
 
             if (puedeModificar) {
                 var confirmarCancelacion by rememberSaveable { mutableStateOf(false) }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { alEditarReserva(reserva.id) }) { Text("Editar") }
                     TextButton(onClick = { confirmarCancelacion = true }) { Text("Cancelar solicitud") }
                 }
@@ -132,7 +148,8 @@ private fun TarjetaReserva(
                     AlertDialog(
                         onDismissRequest = { confirmarCancelacion = false },
                         title = { Text("¿Cancelar solicitud?") },
-                        text = { Text("Se cancelará la solicitud de " + reserva.motivo + " del " + reserva.fecha + ".") },
+                        text = { Text("Se cancelará la solicitud de " + reserva.motivo + " del " + reserva.fecha + ".",
+                            modifier = Modifier.verticalScroll(rememberScrollState())) },
                         confirmButton = {
                             Button(onClick = {
                                 alCancelarReserva(reserva.id)
@@ -151,29 +168,72 @@ private fun TarjetaReserva(
                 if (!pagada && alRegistrarPago != null) {
                     var mostrarDialogo by rememberSaveable { mutableStateOf(false) }
                     var monto by rememberSaveable { mutableStateOf("") }
-                    TextButton(onClick = { mostrarDialogo = true }) { Text("Registrar pago") }
+                    var intentoGuardar by rememberSaveable { mutableStateOf(false) }
+                    var errorPago by rememberSaveable { mutableStateOf<String?>(null) }
+                    val pesos = interpretarMontoEnPesos(monto)
+
+                    fun guardarPago() {
+                        if (!mostrarDialogo) return
+                        val montoAlGuardar = interpretarMontoEnPesos(monto)
+                        intentoGuardar = true
+                        if (montoAlGuardar == null) return
+                        if (alRegistrarPago(reserva.id, montoAlGuardar)) mostrarDialogo = false
+                        else errorPago = "No se pudo registrar. Revisa que la reserva siga aprobada y pendiente de pago."
+                    }
+
+                    TextButton(onClick = {
+                        monto = ""
+                        intentoGuardar = false
+                        errorPago = null
+                        mostrarDialogo = true
+                    }) { Text("Registrar pago") }
                     if (mostrarDialogo) {
-                        val pesos = monto.toLongOrNull()
-                        AlertDialog(onDismissRequest = { mostrarDialogo = false },
+                        AlertDialog(
+                            onDismissRequest = { mostrarDialogo = false },
                             title = { Text("Pago de arriendo") },
-                            text = { OutlinedTextField(value = monto,
-                                onValueChange = { if (it.all(Char::isDigit)) monto = it },
-                                label = { Text("Monto en pesos") }, singleLine = true) },
-                            confirmButton = {
-                                Button(enabled = pesos != null && pesos > 0,
-                                    onClick = { if (pesos != null && alRegistrarPago(reserva.id, pesos)) mostrarDialogo = false }
-                                ) { Text("Guardar pago") }
+                            text = {
+                                Column(
+                                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(reserva.motivo + " · " + reserva.fecha)
+                                    OutlinedTextField(
+                                        value = monto,
+                                        onValueChange = { monto = it; errorPago = null },
+                                        label = { Text("Monto en pesos") },
+                                        singleLine = true,
+                                        isError = intentoGuardar && pesos == null,
+                                        supportingText = {
+                                            Text(if (intentoGuardar && pesos == null)
+                                                "Ingresa un monto válido mayor que cero, sin decimales."
+                                                else "Ej.: 15000 o 15.000")
+                                        },
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Number,
+                                            imeAction = ImeAction.Done
+                                        ),
+                                        keyboardActions = KeyboardActions(onDone = { guardarPago() })
+                                    )
+                                    errorPago?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                                }
                             },
-                            dismissButton = { TextButton(onClick = { mostrarDialogo = false }) { Text("Cancelar") } })
+                            confirmButton = {
+                                Button(onClick = { guardarPago() }) { Text("Guardar pago") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { mostrarDialogo = false }) { Text("Cancelar") }
+                            }
+                        )
                     }
                 }
             }
 
             if (puedeGestionar && reserva.estado == EstadoReserva.PENDIENTE) {
                 if (ocupado) Text("Bloque ocupado por otra reserva aprobada")
+                var confirmarRechazo by rememberSaveable { mutableStateOf(false) }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FilledTonalButton(
-                        onClick = { alActualizarEstado(reserva.id, EstadoReserva.RECHAZADA) },
+                        onClick = { confirmarRechazo = true },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Rechazar")
@@ -185,6 +245,25 @@ private fun TarjetaReserva(
                     ) {
                         Text("Aprobar")
                     }
+                }
+                if (confirmarRechazo) {
+                    AlertDialog(
+                        onDismissRequest = { confirmarRechazo = false },
+                        title = { Text("¿Rechazar solicitud?") },
+                        text = {
+                            Text(reserva.motivo + " · " + reserva.fecha + " · " + reserva.hora,
+                                modifier = Modifier.verticalScroll(rememberScrollState()))
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                alActualizarEstado(reserva.id, EstadoReserva.RECHAZADA)
+                                confirmarRechazo = false
+                            }) { Text("Sí, rechazar") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmarRechazo = false }) { Text("Conservar solicitud") }
+                        }
+                    )
                 }
             }
         }

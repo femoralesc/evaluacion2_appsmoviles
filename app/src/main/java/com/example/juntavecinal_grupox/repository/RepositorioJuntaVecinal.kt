@@ -73,8 +73,8 @@ class RepositorioJuntaVecinal {
         return true
     }
 
-    fun registrarMovimiento(titulo: String, categoria: String, monto: Long, tipo: TipoMovimiento, idReserva: String? = null) {
-        if (monto <= 0) return
+    fun registrarMovimiento(titulo: String, categoria: String, monto: Long, tipo: TipoMovimiento, idReserva: String? = null): Boolean {
+        if (monto <= 0 || titulo.isBlank() || categoria.isBlank()) return false
 
         val movimiento = MovimientoFinanciero(
             id = UUID.randomUUID().toString(),
@@ -87,6 +87,7 @@ class RepositorioJuntaVecinal {
         )
 
         movimientos = listOf(movimiento) + movimientos
+        return true
     }
 }
 

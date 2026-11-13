@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal_grupox.model.MovimientoFinanciero
 import com.example.juntavecinal_grupox.model.TipoMovimiento
+import androidx.compose.ui.text.style.TextAlign
+import com.example.juntavecinal_grupox.ui.componentes.EstadoVacio
 import com.example.juntavecinal_grupox.ui.componentes.TituloSeccion
 import com.example.juntavecinal_grupox.ui.componentes.TarjetaResumen
 import com.example.juntavecinal_grupox.ui.componentes.formatearPesos
@@ -47,11 +49,13 @@ fun PantallaFinanzas(
         }
 
         item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(onClick = { alCambiarMes(-1) }) { Text("Anterior") }
-                Text(resumen.nombreMes)
-                TextButton(onClick = { alCambiarMes(1) }) { Text("Siguiente") }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(resumen.nombreMes, modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center, style = MaterialTheme.typography.titleMedium)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    TextButton(onClick = { alCambiarMes(-1) }) { Text("Anterior") }
+                    TextButton(onClick = { alCambiarMes(1) }) { Text("Siguiente") }
+                }
             }
         }
 
@@ -92,7 +96,7 @@ fun PantallaFinanzas(
         if (resumen.puedeVerDetalle) {
             item { TituloSeccion("Movimientos del mes") }
             if (resumen.movimientos.isEmpty()) {
-                item { Text("Sin movimientos en este mes.") }
+                item { EstadoVacio("Sin movimientos este mes", "Puedes consultar otro período con Anterior y Siguiente.") }
             }
             items(resumen.movimientos, key = { it.id }) { movimiento ->
                 TarjetaMovimiento(movimiento)
@@ -100,7 +104,7 @@ fun PantallaFinanzas(
         } else {
             item { TituloSeccion("Rendición mensual") }
             if (resumen.ingresosPorCategoria.isEmpty() && resumen.gastosPorCategoria.isEmpty()) {
-                item { Text("Sin movimientos en este mes.") }
+                item { EstadoVacio("Sin movimientos este mes", "Puedes consultar otro período con Anterior y Siguiente.") }
             }
             item {
                 ResumenCategorias("Ingresos por categoría", resumen.ingresosPorCategoria)
@@ -119,22 +123,16 @@ private fun TarjetaMovimiento(movimiento: MovimientoFinanciero) {
     val signo = if (esIngreso) "+" else "−"
 
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Text(movimiento.titulo, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${movimiento.categoria} · ${movimiento.fecha}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text("$signo ${formatearPesos(movimiento.monto)}", style = MaterialTheme.typography.titleMedium, color = colorMonto)
+            Text(movimiento.titulo, style = MaterialTheme.typography.titleMedium)
+            Text("${movimiento.categoria} · ${movimiento.fecha}",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("$signo ${formatearPesos(movimiento.monto)}",
+                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End,
+                style = MaterialTheme.typography.titleMedium, color = colorMonto)
         }
     }
 }
@@ -148,7 +146,7 @@ private fun ResumenCategorias(titulo: String, totales: Map<String, Long>) {
             totales.forEach { (categoria, total) ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(categoria, modifier = Modifier.weight(1f))
-                    Text(formatearPesos(total))
+                    Text(formatearPesos(total), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 }
             }
         }

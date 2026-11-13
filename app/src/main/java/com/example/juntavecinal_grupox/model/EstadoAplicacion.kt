@@ -6,8 +6,12 @@ data class EstadoAplicacion(
     val reservas: List<Reserva> = emptyList(),
     val movimientos: List<MovimientoFinanciero> = emptyList(),
     val desplazamientoMes: Int = 0,
-    val idReservaEnEdicion: String? = null
+    val idReservaEnEdicion: String? = null,
+    val avisos: List<Aviso> = emptyList()
 ) {
+    val avisosSinLeer: Int
+        get() = avisos.count { !it.leido }
+
     val perfilActivo: RolUsuario
         get() = usuarioActual?.rol ?: RolUsuario.VECINO
 

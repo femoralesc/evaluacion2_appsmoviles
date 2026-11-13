@@ -1,6 +1,8 @@
 package com.example.juntavecinal_grupox.ui.componentes
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,6 +38,19 @@ fun TarjetaResumen(
 @Composable
 fun TituloSeccion(text: String) {
     Text(text, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+}
+
+@Composable
+fun EstadoVacio(titulo: String, mensaje: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(titulo, style = MaterialTheme.typography.titleMedium)
+            Text(mensaje, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
 
 @Composable

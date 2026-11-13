@@ -1,7 +1,23 @@
 package com.example.juntavecinal_grupox.ui.navegacion
 
+import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.example.juntavecinal_grupox.ui.pantallas.PantallaAvisos
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -67,6 +83,7 @@ fun NavegacionAplicacion(modeloPrincipal: PrincipalViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NavegacionSesion(
     modeloPrincipal: PrincipalViewModel,
@@ -76,6 +93,12 @@ private fun NavegacionSesion(
     val resumenFinanciero = modeloPrincipal.obtenerResumenFinanciero(estadoAplicacion)
     val avisos = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()
+    fun confirmar(mensaje: String) {
+        alcance.launch {
+            avisos.currentSnackbarData?.dismiss()
+            avisos.showSnackbar(mensaje)
+        }
+    }
 
 
     val entradaActual by controladorNavegacion.currentBackStackEntryAsState()
@@ -90,7 +113,19 @@ private fun NavegacionSesion(
     )
 
 
-    val mostrarBarraInferior = opciones.any { it.ruta.ruta == rutaActual }
+    val mostrarBarraInferior = opciones.any { it.ruta.ruta == rutaActual } || rutaActual == RutasAplicacion.Avisos.ruta
+
+    val actividad = LocalContext.current as? Activity
+    val vista = LocalView.current
+    val temaOscuro = isSystemInDarkTheme()
+    DisposableEffect(mostrarBarraInferior, temaOscuro, actividad, vista) {
+        val controlador = actividad?.window?.let { WindowCompat.getInsetsController(it, vista) }
+        val aparienciaAnterior = controlador?.isAppearanceLightStatusBars
+        controlador?.isAppearanceLightStatusBars = !mostrarBarraInferior && !temaOscuro
+        onDispose {
+            if (aparienciaAnterior != null) controlador?.isAppearanceLightStatusBars = aparienciaAnterior
+        }
+    }
 
     LaunchedEffect(Unit) {
         modeloPrincipal.eventoNavegacion.collect { evento ->
@@ -114,6 +149,39 @@ private fun NavegacionSesion(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(avisos) },
+        topBar = {
+            if (mostrarBarraInferior) {
+                TopAppBar(
+                    title = { Text("Junta Vecinal") },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = AzulMarino,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    ),
+                    navigationIcon = {
+                        if (rutaActual == RutasAplicacion.Avisos.ruta) {
+                            IconButton(onClick = modeloPrincipal::volver) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { modeloPrincipal.navegarA(RutasAplicacion.Avisos) }) {
+                            BadgedBox(badge = {
+                                if (estadoAplicacion.avisosSinLeer > 0) {
+                                    Badge(containerColor = VerdeAgua, contentColor = GrisCarbon) {
+                                        Text(estadoAplicacion.avisosSinLeer.toString())
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Notifications, contentDescription = "Avisos")
+                            }
+                        }
+                    }
+                )
+            }
+        },
         bottomBar = {
             if (mostrarBarraInferior) {
                 NavigationBar(
@@ -161,18 +229,33 @@ private fun NavegacionSesion(
             composable(RutasAplicacion.Reservas.ruta) {
                 PantallaReservas(
                     estadoAplicacion = estadoAplicacion,
-                    alRegistrarPago = { id, monto -> modeloPrincipal.registrarPago(id, monto) },
+                    alRegistrarPago = { id, monto ->
+                        val guardado = modeloPrincipal.registrarPago(id, monto)
+                        confirmar(if (guardado) "Pago registrado" else "No se pudo registrar el pago. Revisa el estado de la reserva.")
+                        guardado
+                    },
                     alSolicitarReserva = { modeloPrincipal.navegarA(RutasAplicacion.FormularioReserva) },
                     alEditarReserva = modeloPrincipal::abrirEdicionReserva,
                     puedeModificarReserva = modeloPrincipal::puedeModificarReserva,
                     alCancelarReserva = { id ->
                         val cancelada = modeloPrincipal.cancelarReserva(id)
-                        alcance.launch {
-                            avisos.showSnackbar(if (cancelada) "Solicitud cancelada" else "La solicitud ya no se puede cancelar")
-                        }
+                        confirmar(if (cancelada) "Solicitud cancelada" else "La solicitud ya no se puede cancelar")
                         cancelada
                     },
-                    alActualizarEstado = { id, estado -> modeloPrincipal.actualizarEstadoReserva(id, estado) }
+                    alActualizarEstado = { id, estado ->
+                        val actualizada = modeloPrincipal.actualizarEstadoReserva(id, estado)
+                        val mensaje = if (!actualizada) "No se pudo actualizar. Revisa el estado y la disponibilidad."
+                            else if (estado == com.example.juntavecinal_grupox.model.EstadoReserva.APROBADA) "Reserva aprobada"
+                            else "Solicitud rechazada"
+                        confirmar(mensaje)
+                    }
+                )
+            }
+            composable(RutasAplicacion.Avisos.ruta) {
+                PantallaAvisos(
+                    avisos = estadoAplicacion.avisos,
+                    alMarcarLeido = modeloPrincipal::marcarAvisoLeido,
+                    alMarcarTodosLeidos = modeloPrincipal::marcarTodosLosAvisosLeidos
                 )
             }
             composable(RutasAplicacion.Finanzas.ruta) {
@@ -197,7 +280,7 @@ private fun NavegacionSesion(
                     alEnviar = { fecha, hora, motivo ->
                         val guardada = modeloPrincipal.solicitarReserva(fecha, hora, motivo)
                         if (guardada) {
-                            alcance.launch { avisos.showSnackbar("Solicitud enviada") }
+                            confirmar("Solicitud enviada")
                         }
                         guardada
                     }
@@ -213,7 +296,7 @@ private fun NavegacionSesion(
                             alVolver = modeloPrincipal::volver,
                             alEnviar = { fecha, hora, motivo ->
                                 val guardada = modeloPrincipal.guardarEdicionReserva(fecha, hora, motivo)
-                                if (guardada) alcance.launch { avisos.showSnackbar("Solicitud actualizada") }
+                                if (guardada) confirmar("Solicitud actualizada")
                                 guardada
                             }
                         )
@@ -229,7 +312,10 @@ private fun NavegacionSesion(
                 if (modeloPrincipal.puedeAcceder(RutasAplicacion.FormularioMovimiento)) PantallaFormularioMovimiento(
                     alVolver = { modeloPrincipal.volver() },
                     alEnviar = { titulo, categoria, monto, tipo ->
-                        modeloPrincipal.registrarMovimiento(titulo, categoria, monto, tipo)
+                        val guardado = modeloPrincipal.registrarMovimiento(titulo, categoria, monto, tipo)
+                        if (guardado) confirmar(if (tipo == com.example.juntavecinal_grupox.model.TipoMovimiento.INGRESO)
+                            "Ingreso registrado" else "Gasto registrado")
+                        guardado
                     }
                 )
             }

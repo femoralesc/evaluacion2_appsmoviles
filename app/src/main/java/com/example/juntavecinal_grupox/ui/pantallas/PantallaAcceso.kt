@@ -79,6 +79,9 @@ fun PantallaAcceso(
                     value = contrasena,
                     onValueChange = { contrasena = it; alCambiarDatos() },
                     label = { Text("Contraseña") },
+                    supportingText = {
+                        mensajeError?.let { Text(it) }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = mensajeError != null,
@@ -94,10 +97,6 @@ fun PantallaAcceso(
                     ),
                     keyboardActions = KeyboardActions(onDone = { ingresar() })
                 )
-                mensajeError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium)
-                }
                 Button(onClick = { ingresar() }, modifier = Modifier.fillMaxWidth()) {
                     Text("Ingresar")
                 }

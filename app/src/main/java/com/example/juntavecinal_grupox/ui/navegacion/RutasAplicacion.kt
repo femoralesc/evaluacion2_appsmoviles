@@ -8,6 +8,8 @@ sealed class RutasAplicacion (val ruta: String) {
 
     data object Finanzas : RutasAplicacion(ruta = "finance_page")
 
+    data object Avisos : RutasAplicacion(ruta = "avisos")
+
     data object Perfil : RutasAplicacion(ruta = "profile_page")
 
     data object FormularioReserva : RutasAplicacion(ruta = "reservation_form_page")

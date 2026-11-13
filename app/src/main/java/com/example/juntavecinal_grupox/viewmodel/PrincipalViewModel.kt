@@ -10,6 +10,7 @@ import com.example.juntavecinal_grupox.model.TipoMovimiento
 import com.example.juntavecinal_grupox.model.EstadoReserva
 import com.example.juntavecinal_grupox.model.RolUsuario
 import com.example.juntavecinal_grupox.model.Reserva
+import com.example.juntavecinal_grupox.repository.RepositorioAvisos
 import com.example.juntavecinal_grupox.repository.RepositorioAcceso
 import com.example.juntavecinal_grupox.repository.RepositorioJuntaVecinal
 import com.example.juntavecinal_grupox.ui.navegacion.RutasAplicacion
@@ -21,12 +22,40 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 
 class PrincipalViewModel : ViewModel() {
+    private val repositorioAvisos = RepositorioAvisos()
     private val repositorioAcceso = RepositorioAcceso()
     private val repositorio = RepositorioJuntaVecinal()
     private val _estadoAplicacion = MutableStateFlow(
         EstadoAplicacion(reservas = repositorio.reservas, movimientos = repositorio.movimientos)
     )
     val estadoAplicacion = _estadoAplicacion.asStateFlow()
+
+    private fun actualizarAvisos() {
+        val usuario = _estadoAplicacion.value.usuarioActual ?: return
+        _estadoAplicacion.update { it.copy(avisos = repositorioAvisos.obtenerAvisos(usuario.id)) }
+    }
+
+    private fun crearAviso(idDestinatario: String?, titulo: String, mensaje: String) {
+        if (idDestinatario == null) return
+        repositorioAvisos.agregarAviso(idDestinatario, titulo, mensaje)
+        actualizarAvisos()
+    }
+
+    private fun avisarAlRol(rol: RolUsuario, titulo: String, mensaje: String) {
+        crearAviso(repositorioAcceso.obtenerUsuarioPorRol(rol)?.id, titulo, mensaje)
+    }
+
+    fun marcarAvisoLeido(id: String) {
+        val usuario = _estadoAplicacion.value.usuarioActual ?: return
+        repositorioAvisos.marcarLeido(id, usuario.id)
+        actualizarAvisos()
+    }
+
+    fun marcarTodosLosAvisosLeidos() {
+        val usuario = _estadoAplicacion.value.usuarioActual ?: return
+        repositorioAvisos.marcarTodosLeidos(usuario.id)
+        actualizarAvisos()
+    }
 
     fun cambiarMesFinanciero(desplazamiento: Int) {
         if (_estadoAplicacion.value.usuarioActual == null) return
@@ -69,6 +98,7 @@ class PrincipalViewModel : ViewModel() {
         }
         _estadoAplicacion.value = EstadoAplicacion(
             usuarioActual = usuario,
+            avisos = repositorioAvisos.obtenerAvisos(usuario.id),
             reservas = repositorio.reservas,
             movimientos = repositorio.movimientos
         )
@@ -121,6 +151,9 @@ class PrincipalViewModel : ViewModel() {
         val agregada = repositorio.solicitarReserva(usuario.nombre, fecha, hora, motivo)
         if (agregada) {
             _estadoAplicacion.update { it.copy(reservas = repositorio.reservas) }
+            crearAviso(usuario.id, "Solicitud enviada", "Tu solicitud de " + motivo + " para el " + fecha + " a las " + hora + " está pendiente.")
+            avisarAlRol(RolUsuario.DIRECTIVA, "Nueva solicitud de arriendo",
+                usuario.nombre + " solicitó la sede para el " + fecha + " a las " + hora + ".")
             navegarA(RutasAplicacion.Reservas, volverHasta = RutasAplicacion.Inicio)
         }
         return agregada
@@ -149,6 +182,10 @@ class PrincipalViewModel : ViewModel() {
         val nombre = _estadoAplicacion.value.usuarioActual?.nombre ?: return false
         if (!repositorio.editarReserva(reserva.id, nombre, fecha, hora, motivo)) return false
         _estadoAplicacion.update { it.copy(reservas = repositorio.reservas, idReservaEnEdicion = null) }
+        crearAviso(_estadoAplicacion.value.usuarioActual?.id, "Solicitud actualizada",
+            "Actualizaste tu solicitud de " + motivo + " para el " + fecha + " a las " + hora + ".")
+        avisarAlRol(RolUsuario.DIRECTIVA, "Solicitud actualizada",
+            nombre + " modificó su solicitud. Revisa la nueva fecha y horario.")
         navegarA(RutasAplicacion.Reservas, volverHasta = RutasAplicacion.Inicio)
         return true
     }
@@ -159,6 +196,10 @@ class PrincipalViewModel : ViewModel() {
         val nombre = _estadoAplicacion.value.usuarioActual?.nombre ?: return false
         if (!repositorio.cancelarReserva(id, nombre)) return false
         _estadoAplicacion.update { it.copy(reservas = repositorio.reservas, idReservaEnEdicion = null) }
+        crearAviso(_estadoAplicacion.value.usuarioActual?.id, "Solicitud cancelada",
+            "Cancelaste tu solicitud de " + reserva.motivo + " del " + reserva.fecha + ".")
+        avisarAlRol(RolUsuario.DIRECTIVA, "Solicitud cancelada",
+            nombre + " canceló su solicitud de " + reserva.motivo + " del " + reserva.fecha + ".")
         return true
     }
 
@@ -166,6 +207,16 @@ class PrincipalViewModel : ViewModel() {
         if (_estadoAplicacion.value.usuarioActual?.rol != RolUsuario.DIRECTIVA) return false
         val actualizada = repositorio.actualizarEstadoReserva(id, estado)
         _estadoAplicacion.update { it.copy(reservas = repositorio.reservas) }
+        if (actualizada) {
+            val reserva = repositorio.reservas.first { it.id == id }
+            val titulo = if (estado == EstadoReserva.APROBADA) "Reserva aprobada" else "Solicitud rechazada"
+            val mensaje = reserva.motivo + " · " + reserva.fecha + " · " + reserva.hora
+            crearAviso(repositorioAcceso.obtenerUsuarioPorNombre(reserva.nombreSolicitante)?.id, titulo, mensaje)
+            crearAviso(_estadoAplicacion.value.usuarioActual?.id, titulo, mensaje)
+            if (estado == EstadoReserva.APROBADA) {
+                avisarAlRol(RolUsuario.TESORERIA, "Arriendo pendiente de pago", mensaje)
+            }
+        }
         return actualizada
     }
 
@@ -173,13 +224,24 @@ class PrincipalViewModel : ViewModel() {
         if (_estadoAplicacion.value.usuarioActual?.rol != RolUsuario.TESORERIA) return false
         val pagada = repositorio.registrarPago(id, monto)
         _estadoAplicacion.update { it.copy(movimientos = repositorio.movimientos) }
+        if (pagada) {
+            val reserva = repositorio.reservas.first { it.id == id }
+            val mensaje = "Pago de " + monto + " pesos registrado para " + reserva.motivo + " del " + reserva.fecha + "."
+            crearAviso(repositorioAcceso.obtenerUsuarioPorNombre(reserva.nombreSolicitante)?.id, "Pago registrado", mensaje)
+            crearAviso(_estadoAplicacion.value.usuarioActual?.id, "Pago registrado", mensaje)
+        }
         return pagada
     }
 
-    fun registrarMovimiento(titulo: String, categoria: String, monto: Long, tipo: TipoMovimiento) {
-        if (_estadoAplicacion.value.usuarioActual?.rol?.puedeRegistrarMovimientos != true) return
-        repositorio.registrarMovimiento(titulo, categoria, monto, tipo)
+    fun registrarMovimiento(titulo: String, categoria: String, monto: Long, tipo: TipoMovimiento): Boolean {
+        if (_estadoAplicacion.value.usuarioActual?.rol?.puedeRegistrarMovimientos != true) return false
+        if (!repositorio.registrarMovimiento(titulo.trim(), categoria.trim(), monto, tipo)) return false
         _estadoAplicacion.update { it.copy(movimientos = repositorio.movimientos) }
-        volver()
+        val tituloAviso = if (tipo == TipoMovimiento.INGRESO) "Ingreso registrado" else "Gasto registrado"
+        val mensaje = titulo + " · " + categoria + " · " + monto + " pesos."
+        crearAviso(_estadoAplicacion.value.usuarioActual?.id, tituloAviso, mensaje)
+        avisarAlRol(RolUsuario.DIRECTIVA, tituloAviso, mensaje)
+        navegarA(RutasAplicacion.Finanzas, volverHasta = RutasAplicacion.Inicio)
+        return true
     }
 }

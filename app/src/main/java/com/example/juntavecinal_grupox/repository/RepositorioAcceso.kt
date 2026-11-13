@@ -22,6 +22,12 @@ class RepositorioAcceso {
         )
     )
 
+    fun obtenerUsuarioPorRol(rol: RolUsuario): Usuario? =
+        cuentas.find { it.usuario.rol == rol }?.usuario
+
+    fun obtenerUsuarioPorNombre(nombre: String): Usuario? =
+        cuentas.find { it.usuario.nombre == nombre }?.usuario
+
     fun autenticar(nombreUsuario: String, contrasena: String): Usuario? {
         return cuentas.find {
             it.usuario.nombreUsuario == nombreUsuario.trim().lowercase() &&
